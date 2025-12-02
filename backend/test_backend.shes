@@ -1,0 +1,27 @@
+#!/bin/bash
+
+echo "🔍 Testing Backend API..."
+echo ""
+
+echo "1️⃣ Health Check:"
+curl -s http://localhost:8080/api/v1/health | jq . 2>/dev/null || curl -s http://localhost:8080/api/v1/health
+echo -e "\n"
+
+echo "2️⃣ Create Snippet:"
+RESPONSE=$(curl -s -X POST http://localhost:8080/api/v1/snippets \
+  -H "Content-Type: application/json" \
+  -d '{"language": "javascript", "code": "console.log(\"Test\");", "title": "Test Snippet"}')
+echo $RESPONSE | jq . 2>/dev/null || echo $RESPONSE
+SNIPPET_ID=$(echo $RESPONSE | grep -o '"snippet_id":"[^"]*"' | cut -d'"' -f4)
+echo -e "\n"
+
+echo "3️⃣ Get Snippet:"
+curl -s http://localhost:8080/api/v1/snippets/$SNIPPET_ID | jq . 2>/dev/null || curl -s http://localhost:8080/api/v1/snippets/$SNIPPET_ID
+echo -e "\n"
+
+echo "4️⃣ Execute Code:"
+curl -s -X POST http://localhost:8080/api/v1/execute \
+  -H "Content-Type: application/json" \
+  -d '{"language_id": 71, "code": "print(2+2)", "stdin": ""}' | jq . 2>/dev/null || curl -s -X POST http://localhost:8080/api/v1/execute -H "Content-Type: application/json" -d '{"language_id": 71, "code": "print(2+2)", "stdin": ""}'
+
+echo -e "\n✅ All tests complete!"

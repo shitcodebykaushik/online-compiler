@@ -1,0 +1,60 @@
+services:
+  # Piston - Code Execution Engine
+  piston:
+    image: ghcr.io/engineer-man/piston
+    container_name: piston_api
+    privileged: true
+    volumes:
+      - piston_packages:/piston/packages
+    tmpfs:
+      - /piston/jobs:exec,uid=1000,gid=1000,mode=711
+    ports:
+      - "2000:2000"
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # Backend - Go API Server
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: online_compiler_backend
+    environment:
+      - PORT=8080
+      - GIN_MODE=release
+      - JUDGE0_URL=http://piston:2000
+      - DATABASE_PATH=/app/data/compiler.db
+      - REDIS_URL=redis:6379
+      - ALLOWED_ORIGINS=http://localhost,http://localhost:80
+    ports:
+      - "8080:8080"
+    volumes:
+      - backend_data:/app/data
+    depends_on:
+      - piston
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # Frontend - React Application
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: online_compiler_frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - app-network
+    restart: unless-stopped
+
+volumes:
+  piston_packages:
+  backend_data:
+
+networks:
+  app-network:
+    driver: bridge

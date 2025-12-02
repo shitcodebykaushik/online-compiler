@@ -1,0 +1,115 @@
+services:
+  # Judge0 PostgreSQL Database
+  judge0-db:
+    image: postgres:13
+    container_name: judge0-db
+    environment:
+      POSTGRES_USER: judge0
+      POSTGRES_PASSWORD: judge0
+      POSTGRES_DB: judge0
+    volumes:
+      - judge0-postgres-data:/var/lib/postgresql/data
+    networks:
+      - compiler-network
+    restart: unless-stopped
+
+  # Judge0 Redis
+  judge0-redis:
+    image: redis:7-alpine
+    container_name: judge0-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - judge0-redis-data:/data
+    networks:
+      - compiler-network
+    restart: unless-stopped
+
+  # Judge0 Server
+  judge0-server:
+    image: judge0/judge0:1.13.0
+    container_name: judge0-server
+    privileged: true
+    ports:
+      - "2358:2358"
+    environment:
+      - REDIS_HOST=judge0-redis
+      - POSTGRES_HOST=judge0-db
+      - POSTGRES_USER=judge0
+      - POSTGRES_PASSWORD=judge0
+      - POSTGRES_DB=judge0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - judge0-db
+      - judge0-redis
+    networks:
+      - compiler-network
+    restart: unless-stopped
+
+  # Judge0 Workers
+  judge0-worker:
+    image: judge0/judge0:1.13.0
+    privileged: true
+    command: [ "./scripts/workers" ]
+    environment:
+      - REDIS_HOST=judge0-redis
+      - POSTGRES_HOST=judge0-db
+      - POSTGRES_USER=judge0
+      - POSTGRES_PASSWORD=judge0
+      - POSTGRES_DB=judge0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - judge0-db
+      - judge0-redis
+    networks:
+      - compiler-network
+    restart: unless-stopped
+    deploy:
+      replicas: 1
+
+  # Application Redis (separate from Judge0)
+  app-redis:
+    image: redis:7-alpine
+    container_name: app-redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - app-redis-data:/data
+    networks:
+      - compiler-network
+    restart: unless-stopped
+
+  # Go Backend API
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: compiler-backend
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - GIN_MODE=release
+      - JUDGE0_URL=http://judge0-server:2358
+      - REDIS_URL=app-redis:6379
+      - DATABASE_PATH=/app/data/compiler.db
+      - ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      - judge0-server
+      - app-redis
+    networks:
+      - compiler-network
+    restart: unless-stopped
+
+networks:
+  compiler-network:
+    driver: bridge
+
+volumes:
+  judge0-postgres-data:
+  judge0-redis-data:
+  app-redis-data:

@@ -1,0 +1,30 @@
+# Dependency directories
+vendor/
+
+# Build outputs
+server
+
+# Environment files
+.env
+.env.local
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+data/
+
+# Logs
+*.log
+
+# Test files
+*_test.go
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Temporary files
+tmp/
+temp/
