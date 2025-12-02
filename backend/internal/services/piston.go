@@ -21,7 +21,7 @@ type PistonService struct {
 // NewPistonService creates a new Piston service
 func NewPistonService() *PistonService {
 	return &PistonService{
-		BaseURL: "http://localhost:2000",
+		BaseURL: configs.AppConfig.Judge0URL,
 		Client: &http.Client{
 			Timeout: time.Duration(configs.AppConfig.Judge0Timeout) * time.Second,
 		},
